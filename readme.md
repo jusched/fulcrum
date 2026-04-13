@@ -47,9 +47,7 @@ This repo maps directly to the four parts requested in the PDF.
 
 ## Submission Strategy
 
-The recruiter explicitly said the focus is `approach and time management`.
-
-Because of that, this repo was optimized for:
+This repo was optimized for:
 - fast human review first
 - runnable proof second
 - honest production path third
