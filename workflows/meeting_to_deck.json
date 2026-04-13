@@ -2,14 +2,30 @@
   "name": "Meeting Transcript To Deck POC",
   "nodes": [
     {
+      "parameters": {
+        "content": "## 1. Intake\\nManual trigger runs the repo-safe proof of concept.\\nThe disabled Google Drive trigger shows the production intake path.",
+        "height": 170,
+        "width": 280,
+        "color": 6
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130100",
+      "name": "Intake Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        -220
+      ]
+    },
+    {
       "parameters": {},
       "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130001",
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
-        -520,
-        180
+        -860,
+        80
       ]
     },
     {
@@ -37,11 +53,27 @@
       "type": "n8n-nodes-base.googleDriveTrigger",
       "typeVersion": 1,
       "position": [
-        -520,
-        -40
+        -860,
+        -20
       ],
       "disabled": true,
       "notes": "Production intake option. Disabled in the repo-safe proof of concept because credentials are not committed."
+    },
+    {
+      "parameters": {
+        "content": "## 2. Validation\\nSet runtime config, verify the transcript path exists, and stop early if the intake is invalid.",
+        "height": 170,
+        "width": 300,
+        "color": 3
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130101",
+      "name": "Validation Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -610,
+        -220
+      ]
     },
     {
       "parameters": {
@@ -85,6 +117,12 @@
               "value": false
             },
             {
+              "id": "runtime-approve",
+              "name": "approveForDistribution",
+              "type": "boolean",
+              "value": false
+            },
+            {
               "id": "runtime-title",
               "name": "meetingTitle",
               "type": "string",
@@ -112,8 +150,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -260,
-        180
+        -600,
+        80
       ]
     },
     {
@@ -145,23 +183,9 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        0,
-        180
+        -340,
+        80
       ]
-    },
-    {
-      "parameters": {
-        "command": "python -m execution.build_sample_package --transcript \"{{$json.transcriptPath}}\" --metadata \"{{$json.metadataPath}}\" --output-dir \"{{$json.outputDir}}\" --mode \"{{$json.mode}}\""
-      },
-      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130005",
-      "name": "Build Sample Package",
-      "type": "n8n-nodes-base.executeCommand",
-      "typeVersion": 1,
-      "position": [
-        280,
-        120
-      ],
-      "notes": "Calls the local Python package builder used by the repo proof of concept."
     },
     {
       "parameters": {
@@ -173,6 +197,12 @@
               "name": "status",
               "type": "string",
               "value": "blocked"
+            },
+            {
+              "id": "missing-transcript-stage",
+              "name": "stage",
+              "type": "string",
+              "value": "intake_validation"
             },
             {
               "id": "missing-transcript-reason",
@@ -190,8 +220,328 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        280,
-        260
+        -60,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 3. Build And Parse\\nRun the local builder, parse the JSON response, and branch explicitly when the package build fails.",
+        "height": 180,
+        "width": 300,
+        "color": 4
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130102",
+      "name": "Build Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -100,
+        -220
+      ]
+    },
+    {
+      "parameters": {
+        "command": "python -m execution.build_sample_package --transcript \"{{$json.transcriptPath}}\" --metadata \"{{$json.metadataPath}}\" --output-dir \"{{$json.outputDir}}\" --mode \"{{$json.mode}}\""
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130005",
+      "name": "Build Sample Package",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        20
+      ],
+      "continueOnFail": true,
+      "notes": "Calls the local Python package builder used by the repo proof of concept."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "command-succeeded",
+              "leftValue": "={{ $json.exitCode }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130012",
+      "name": "Build Command Succeeded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        190,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "mode": "runOnceForAllItems",
+        "jsCode": "const first = items[0].json;\nconst raw = first.stdout || first.data || first.response || '';\nconst parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;\nreturn [{ json: { ...parsed, commandExitCode: first.exitCode ?? 0, stderr: first.stderr || '' } }];"
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130013",
+      "name": "Parse Builder Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "validation-passed",
+              "leftValue": "={{ $json.validation.valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        }
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130014",
+      "name": "Validation Passed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        700,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "presentation-path-present",
+              "leftValue": "={{ $json.artifacts.presentation }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ]
+        }
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130015",
+      "name": "Presentation Path Present?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        960,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 4. Intermediate outputs\\nThis step surfaces the JSON payload, validation report, markdown summary, and final PPTX so the reviewer can inspect intermediate and final artifacts.",
+        "height": 200,
+        "width": 340,
+        "color": 7
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130103",
+      "name": "Intermediate Outputs Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1150,
+        -250
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "artifact-json",
+              "name": "deckContentPath",
+              "type": "string",
+              "value": "={{ $json.artifacts.deck_content }}"
+            },
+            {
+              "id": "artifact-validation",
+              "name": "validationReportPath",
+              "type": "string",
+              "value": "={{ $json.artifacts.validation_report }}"
+            },
+            {
+              "id": "artifact-summary",
+              "name": "summaryPath",
+              "type": "string",
+              "value": "={{ $json.artifacts.summary_markdown }}"
+            },
+            {
+              "id": "artifact-presentation",
+              "name": "presentationPath",
+              "type": "string",
+              "value": "={{ $json.artifacts.presentation }}"
+            },
+            {
+              "id": "artifact-status",
+              "name": "artifactStatus",
+              "type": "string",
+              "value": "intermediate_and_final_outputs_ready"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130016",
+      "name": "Expose Intermediate Outputs",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1210,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 5. Human Review\\nHuman review happens here before any external distribution.\\nIf not approved, the package stays local and goes back for manual revision.",
+        "height": 200,
+        "width": 320,
+        "color": 5
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130104",
+      "name": "Human Review Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1450,
+        -250
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "review-status",
+              "name": "reviewStatus",
+              "type": "string",
+              "value": "pending_human_review"
+            },
+            {
+              "id": "review-instructions",
+              "name": "reviewInstructions",
+              "type": "string",
+              "value": "Review deck_content.json, validation_report.json, executive_summary.md, and meeting_deck.pptx before any distribution."
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130017",
+      "name": "Human Review Gate",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1470,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "approved-for-distribution",
+              "leftValue": "={{ $json.approveForDistribution }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        }
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130018",
+      "name": "Approved For Distribution?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1730,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "manual-revision-status",
+              "name": "status",
+              "type": "string",
+              "value": "manual_revision_required"
+            },
+            {
+              "id": "manual-revision-reason",
+              "name": "reason",
+              "type": "string",
+              "value": "Human review is pending or approval was not granted for distribution."
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130019",
+      "name": "Manual Revision Required",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1990,
+        80
       ]
     },
     {
@@ -223,8 +573,55 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        560,
-        120
+        1990,
+        -140
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "local-only-status",
+              "name": "status",
+              "type": "string",
+              "value": "package_ready_local_only"
+            },
+            {
+              "id": "local-only-reason",
+              "name": "reason",
+              "type": "string",
+              "value": "Human review approved the package, but Google Slides publishing is disabled for the repo-safe POC."
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130020",
+      "name": "Local Delivery Ready",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2250,
+        -10
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 6. Production Adapters\\nGoogle Slides and Slack are represented here as the production path after approval. They stay disabled in the committed POC because credentials are not committed.",
+        "height": 210,
+        "width": 340,
+        "color": 2
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130105",
+      "name": "Production Adapter Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2250,
+        -280
       ]
     },
     {
@@ -240,8 +637,8 @@
       "type": "n8n-nodes-base.googleSlides",
       "typeVersion": 2,
       "position": [
-        860,
-        40
+        2250,
+        -170
       ],
       "disabled": true,
       "notes": "Production-only publishing branch. Enable after human review and credential setup."
@@ -251,49 +648,139 @@
         "resource": "message",
         "operation": "send",
         "channel": "={{ $json.slackChannel || 'leadership-ai' }}",
-        "text": "Meeting summary package ready for review. Check the local artifact bundle or the published Google Slides link."
+        "text": "Meeting summary package ready for review. Check the generated artifacts and published slide link."
       },
       "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130009",
       "name": "Slack Notification",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.4,
       "position": [
-        860,
-        200
+        2510,
+        -170
       ],
       "disabled": true,
       "notes": "Optional notification branch after approval and publishing setup."
     },
     {
       "parameters": {
-        "content": "## Review Gate\\nHuman review stays outside automation before anything is distributed. In phase one, local PPTX output is the acceptance target.",
-        "height": 160,
-        "width": 280,
-        "color": 7
+        "content": "## 7. Error handling\\nErrors surface in explicit branches: missing transcript, build command failure, schema validation failure, or render/deck path failure.\\nEach branch sets a status and reason instead of failing silently.",
+        "height": 220,
+        "width": 360,
+        "color": 1
       },
-      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130010",
-      "name": "Review Gate Note",
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130106",
+      "name": "Error Handling Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        520,
-        -120
+        450,
+        210
       ]
     },
     {
       "parameters": {
-        "content": "## Production Adapters\\nGoogle Drive Trigger, Google Slides, and Slack stay in the exported workflow as explicit next-step integrations, but they remain disabled in the repo-safe POC because credentials are not committed.",
-        "height": 220,
-        "width": 320,
-        "color": 5
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": false,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "stderr-mentions-validation",
+              "leftValue": "={{ ($json.stderr || '').toLowerCase() }}",
+              "rightValue": "validation",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ]
+        }
       },
-      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130011",
-      "name": "Production Adapter Note",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130021",
+      "name": "Validation Failure Mentioned?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
       "position": [
-        760,
-        -220
+        450,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "schema-error-status",
+              "name": "status",
+              "type": "string",
+              "value": "schema_validation_failed"
+            },
+            {
+              "id": "schema-error-stage",
+              "name": "stage",
+              "type": "string",
+              "value": "validation"
+            },
+            {
+              "id": "schema-error-reason",
+              "name": "reason",
+              "type": "string",
+              "value": "The package build failed and stderr indicates a validation issue. Review validation_report.json or the builder stderr output."
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130022",
+      "name": "Schema Validation Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        710,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "render-error-status",
+              "name": "status",
+              "type": "string",
+              "value": "render_or_build_failed"
+            },
+            {
+              "id": "render-error-stage",
+              "name": "stage",
+              "type": "string",
+              "value": "artifact_generation"
+            },
+            {
+              "id": "render-error-reason",
+              "name": "reason",
+              "type": "string",
+              "value": "The package build failed before a valid presentation path was produced. Inspect stderr and the execution logs."
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130023",
+      "name": "Render Failure Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        710,
+        180
       ]
     }
   ],
@@ -342,7 +829,130 @@
       "main": [
         [
           {
+            "node": "Build Command Succeeded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Command Succeeded?": {
+      "main": [
+        [
+          {
+            "node": "Parse Builder Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validation Failure Mentioned?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation Failure Mentioned?": {
+      "main": [
+        [
+          {
+            "node": "Schema Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Render Failure Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Builder Result": {
+      "main": [
+        [
+          {
+            "node": "Validation Passed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation Passed?": {
+      "main": [
+        [
+          {
+            "node": "Presentation Path Present?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Schema Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Presentation Path Present?": {
+      "main": [
+        [
+          {
+            "node": "Expose Intermediate Outputs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Render Failure Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expose Intermediate Outputs": {
+      "main": [
+        [
+          {
+            "node": "Human Review Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Human Review Gate": {
+      "main": [
+        [
+          {
+            "node": "Approved For Distribution?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approved For Distribution?": {
+      "main": [
+        [
+          {
             "node": "Publish To Google Slides?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Manual Revision Required",
             "type": "main",
             "index": 0
           }
@@ -360,7 +970,7 @@
         ],
         [
           {
-            "node": "Slack Notification",
+            "node": "Local Delivery Ready",
             "type": "main",
             "index": 0
           }
@@ -385,5 +995,5 @@
     "saveExecutionProgress": true
   },
   "pinData": {},
-  "versionId": "00000000-0000-0000-0000-000000000001"
+  "versionId": "00000000-0000-0000-0000-000000000002"
 }
