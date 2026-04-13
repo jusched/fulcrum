@@ -1,0 +1,87 @@
+{
+  "executive_summary": "BrightLane should start with an internal meeting intelligence workflow that turns leadership calls into a reviewed summary package before expanding into customer-facing automation.",
+  "objectives": [
+    {
+      "title": "Automate recurring internal reporting first",
+      "rationale": "The highest-confidence phase-one value is reducing manual weekly reporting work before holiday planning.",
+      "evidence_ids": [
+        "obj-1"
+      ]
+    },
+    {
+      "title": "Keep human review for all distributed outputs",
+      "rationale": "Leadership wants time savings, but not black-box or uncontrolled messaging.",
+      "evidence_ids": [
+        "obj-2"
+      ]
+    },
+    {
+      "title": "Use auditable AI plus deterministic rules",
+      "rationale": "The workflow should synthesize what matters while preserving traceability to source evidence.",
+      "evidence_ids": [
+        "obj-3"
+      ]
+    }
+  ],
+  "action_items": [
+    {
+      "title": "Pilot the workflow on one recurring leadership meeting type",
+      "owner": "Marcus Lee",
+      "due_window": "Before holiday planning",
+      "evidence_ids": [
+        "act-1"
+      ]
+    },
+    {
+      "title": "Add an approval step before Slack or Slide distribution",
+      "owner": "Sarah Kim",
+      "due_window": "Phase one launch",
+      "evidence_ids": [
+        "act-2"
+      ]
+    },
+    {
+      "title": "Prepare a rough monthly cost view for 20 meetings",
+      "owner": "AI Automation Specialist",
+      "due_window": "POC review",
+      "evidence_ids": [
+        "act-3"
+      ]
+    }
+  ],
+  "next_steps": [
+    "Run the workflow against three historical meeting transcripts.",
+    "Review objective/action quality with operations leadership.",
+    "Decide whether to enable Google Slides publishing after review."
+  ],
+  "risks": [
+    "Transcript quality can weaken action-item extraction and evidence mapping.",
+    "Inconsistent input discipline will reduce trust in the output package."
+  ],
+  "evidence": [
+    {
+      "id": "obj-1",
+      "quote": "[07:31] Sarah: We have holiday planning starting in about three months."
+    },
+    {
+      "id": "obj-2",
+      "quote": "I would say human approval is mandatory before anything goes out broadly."
+    },
+    {
+      "id": "obj-3",
+      "quote": "I don't want black-box outputs."
+    },
+    {
+      "id": "act-1",
+      "quote": "In terms of next steps, I'd probably propose a small proof of concept around one recurring meeting type."
+    },
+    {
+      "id": "act-2",
+      "quote": "I would say human approval is mandatory before anything goes out broadly."
+    },
+    {
+      "id": "act-3",
+      "quote": "I'd also want some very basic cost estimate before we commit, even if it's directional."
+    }
+  ]
+}

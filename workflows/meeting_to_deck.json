@@ -1,0 +1,389 @@
+{
+  "name": "Meeting Transcript To Deck POC",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_WITH_GOOGLE_DRIVE_FOLDER_ID"
+        },
+        "event": "fileCreated",
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "options": {
+          "fileType": "all"
+        }
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130002",
+      "name": "Google Drive Trigger",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        -40
+      ],
+      "disabled": true,
+      "notes": "Production intake option. Disabled in the repo-safe proof of concept because credentials are not committed."
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "runtime-project-root",
+              "name": "projectRoot",
+              "type": "string",
+              "value": "={{ $env.PROJECT_ROOT || '/opt/meeting-to-deck' }}"
+            },
+            {
+              "id": "runtime-transcript",
+              "name": "transcriptPath",
+              "type": "string",
+              "value": "={{ ($env.PROJECT_ROOT || '/opt/meeting-to-deck') + '/inputs/meeting_transcript.txt' }}"
+            },
+            {
+              "id": "runtime-metadata",
+              "name": "metadataPath",
+              "type": "string",
+              "value": "={{ ($env.PROJECT_ROOT || '/opt/meeting-to-deck') + '/inputs/meeting_metadata.json' }}"
+            },
+            {
+              "id": "runtime-output",
+              "name": "outputDir",
+              "type": "string",
+              "value": "={{ ($env.PROJECT_ROOT || '/opt/meeting-to-deck') + '/artifacts/sample_run' }}"
+            },
+            {
+              "id": "runtime-mode",
+              "name": "mode",
+              "type": "string",
+              "value": "sample"
+            },
+            {
+              "id": "runtime-publish",
+              "name": "publishToGoogleSlides",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "runtime-title",
+              "name": "meetingTitle",
+              "type": "string",
+              "value": "BrightLane Retail AI Automation Discovery Call"
+            },
+            {
+              "id": "runtime-review",
+              "name": "reviewRequired",
+              "type": "boolean",
+              "value": true
+            },
+            {
+              "id": "runtime-channel",
+              "name": "slackChannel",
+              "type": "string",
+              "value": "leadership-ai"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130003",
+      "name": "Set Runtime Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -260,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "has-transcript-path",
+              "leftValue": "={{ $json.transcriptPath }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ]
+        }
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130004",
+      "name": "If Transcript Path Exists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "command": "python -m execution.build_sample_package --transcript \"{{$json.transcriptPath}}\" --metadata \"{{$json.metadataPath}}\" --output-dir \"{{$json.outputDir}}\" --mode \"{{$json.mode}}\""
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130005",
+      "name": "Build Sample Package",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        280,
+        120
+      ],
+      "notes": "Calls the local Python package builder used by the repo proof of concept."
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "missing-transcript-status",
+              "name": "status",
+              "type": "string",
+              "value": "blocked"
+            },
+            {
+              "id": "missing-transcript-reason",
+              "name": "reason",
+              "type": "string",
+              "value": "Transcript path was empty or not configured."
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130006",
+      "name": "Missing Transcript Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        280,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "publish-to-slides",
+              "leftValue": "={{ $json.publishToGoogleSlides }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        }
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130007",
+      "name": "Publish To Google Slides?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        560,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "presentation",
+        "operation": "create",
+        "title": "={{ $json.meetingTitle || 'Meeting Summary Package' }}",
+        "binaryProperty": "data"
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130008",
+      "name": "Create Google Slides Presentation",
+      "type": "n8n-nodes-base.googleSlides",
+      "typeVersion": 2,
+      "position": [
+        860,
+        40
+      ],
+      "disabled": true,
+      "notes": "Production-only publishing branch. Enable after human review and credential setup."
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "channel": "={{ $json.slackChannel || 'leadership-ai' }}",
+        "text": "Meeting summary package ready for review. Check the local artifact bundle or the published Google Slides link."
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130009",
+      "name": "Slack Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        860,
+        200
+      ],
+      "disabled": true,
+      "notes": "Optional notification branch after approval and publishing setup."
+    },
+    {
+      "parameters": {
+        "content": "## Review Gate\\nHuman review stays outside automation before anything is distributed. In phase one, local PPTX output is the acceptance target.",
+        "height": 160,
+        "width": 280,
+        "color": 7
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130010",
+      "name": "Review Gate Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        520,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Production Adapters\\nGoogle Drive Trigger, Google Slides, and Slack stay in the exported workflow as explicit next-step integrations, but they remain disabled in the repo-safe POC because credentials are not committed.",
+        "height": 220,
+        "width": 320,
+        "color": 5
+      },
+      "id": "af5d0f76-7e1b-4ec0-b54e-86be7f130011",
+      "name": "Production Adapter Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        760,
+        -220
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Runtime Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Runtime Config": {
+      "main": [
+        [
+          {
+            "node": "If Transcript Path Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Transcript Path Exists": {
+      "main": [
+        [
+          {
+            "node": "Build Sample Package",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Missing Transcript Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Sample Package": {
+      "main": [
+        [
+          {
+            "node": "Publish To Google Slides?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publish To Google Slides?": {
+      "main": [
+        [
+          {
+            "node": "Create Google Slides Presentation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Google Slides Presentation": {
+      "main": [
+        [
+          {
+            "node": "Slack Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true
+  },
+  "pinData": {},
+  "versionId": "00000000-0000-0000-0000-000000000001"
+}
