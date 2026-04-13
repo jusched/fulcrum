@@ -1,0 +1,14 @@
+{
+  "meeting_title": "BrightLane Retail AI Automation Discovery Call",
+  "meeting_date": "2026-04-13",
+  "participants": [
+    "Sarah Kim (CEO, BrightLane Retail)",
+    "Marcus Lee (Director of Operations, BrightLane Retail)",
+    "Tina Patel (Ecommerce & Customer Experience Manager, BrightLane Retail)",
+    "Alex Rivera (AI Automation Specialist / Consultant)"
+  ],
+  "source": "synthetic_retail_ai_transcript.txt",
+  "delivery_target": "Executive summary email and editable slide deck",
+  "review_required": true
+}
+
